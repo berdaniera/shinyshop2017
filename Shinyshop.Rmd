@@ -1,0 +1,146 @@
+---
+title: "Shiny shop"
+author: "Aaron Berdanier"
+date: "May 2, 2017"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Shiny building blocks
+
+```{r eval=FALSE}
+# R ENVIRONMENT
+library(shiny)
+
+# UI, this is a function call, so contents are elements = need commas between
+ui <- fluidPage()
+
+# SERVER, this is a function definition, so contents are objects
+server <- function(input, output){}
+
+shinyApp(ui = ui, server = server)
+```
+
+# Our components
+
+## In the R environment
+
+We want to load our packages, maybe set up some data, e.g.:
+
+```
+library(shiny)
+library(leaflet)
+library(googlesheets) # or library(rdrop2)
+```
+
+## In the UI
+
+We want to include:
+
+- site dropdown -- `selectInput()`
+- number of widgets input -- `numericInput()`
+- air temperature input -- `numericInput()`
+- add data button -- `actionButton()`
+- map with sites -- [leaflet](https://rstudio.github.io/leaflet/)
+- graph with number v. temperature -- `plotOutput()`
+- table with date, site, number, Temperature -- `tableOutput()` or `dataTableOutput()`
+- download .csv button -- `downloadButton()`
+
+## In the Server
+
+We want to include:
+
+- sites data -- maybe a `list()`?
+- "add data" processing -- [google drive sheet](https://github.com/jennybc/googlesheets) or [dropbox file](https://github.com/karthik/rdrop2)
+- render leaflet -- [leaflet](https://rstudio.github.io/leaflet/)
+- render graph -- `renderPlot()`
+- render table -- `renderTable()` or `DT::renderDataTable()`
+- render download -- [`downloadHandler()`](http://shiny.rstudio.com/gallery/file-download.html)
+
+# Our development steps
+
+1. Set up basic interface, spit out inputs in a table -- test
+2. Set up data interface with google sheets -- test
+3. Set up leaflet interface -- test
+4. Combine them -- test
+
+## 1. Basic interface
+
+#### See above. For now, make it just output user input into a table -- **test**
+
+## 2. google sheets integration
+
+#### We need to **authenticate our google access** first. 
+We only do this once, and *do not* copy the code into our shiny app.R
+
+```
+library(googlesheets)
+shiny_token <- gs_auth() # authenticate
+saveRDS(shiny_token, "shiny_app_token.rds")
+initial_sheet <- data.frame(addtime=0, site=0, weather=0, nwidgets=0)
+ # need to set up with our columns...
+ss <- gs_new("my-shiny-database", input=initial_sheet)
+ss$sheet_key # like: "10kYZGTfXquVUwvBXH-8M-p01csXN6MNuuTzxnDdy3Pk"
+```
+
+**NOTE:** add `*.rds` and `.httr-oauth` to .gitignore if using git!
+
+#### Then, we can push and get data -- **test**
+
+```
+googlesheets::gs_auth(token = "shiny_app_token.rds")
+
+sheetkey <- "10kYZGTfXquVUwvBXH-8M-p01csXN6MNuuTzxnDdy3Pk"
+ss <- googlesheets::gs_key(sheetkey)
+# OR THIS
+# mytable <- "my-shiny-database"
+# ss <- googlesheets::gs_table(mytable)
+
+save_gdata <- function(data){
+  googlesheets::gs_add_row(ss, input = data)
+}
+load_gdata <- function(){
+  googlesheets::gs_read_csv(ss)
+}
+```
+(modified from [Dean Attali](http://deanattali.com/blog/shiny-persistent-data-storage/#gsheets))
+
+## 3. leaflet interface
+
+#### A basic map -- **test**
+
+```
+library(leaflet)
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addMarkers(lng=174.768, lat=-36.852, popup="The birthplace of R")
+m  # Print the map
+```
+(from [RStudio](https://rstudio.github.io/leaflet/))
+
+#### Then, we can [add a leaflet map to Shiny](https://rstudio.github.io/leaflet/shiny.html)...
+
+## 4. Put it together
+
+#### Some pseudocode -- **Actions and reactions**
+
+* User clicks add data button
+    + server adds data to database (on google sheets?)
+    + redraw data table
+    + redraw graph
+* User clicks on a site on the map
+    + filter table data
+    + filter graph data
+* User clicks on download data button
+    + grab data in data table
+    + download to file
+
