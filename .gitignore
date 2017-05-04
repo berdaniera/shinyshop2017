@@ -5,4 +5,8 @@
 .httr-oauth
 *.rds
 *.Rproj
+global.R
 rsconnect/*
+database/*
+test-files/*
+*.csv

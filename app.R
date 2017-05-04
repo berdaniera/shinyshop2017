@@ -1,20 +1,5 @@
-library(googlesheets)
 library(leaflet)
 library(shiny)
-
-gs_auth(token = "shiny_app_token.rds")
-
-key <- "1MuXoFDARgFGWWRclgWzcBGSRX0qeovVQd48bEVDyplE"
-ss <- gs_key(key)
-
-save_gdata <- function(data) gs_add_row(ss, input = data)
-load_gdata <- function(site=NULL){
-  dd <- gs_read(ss)
-  if(!is.null(site)){
-    dd <- dd[which(dd$site==site),]
-  }
-  return(dd)
-}
 
 sites <- list(lng=c(175,-79), lat=c(-36,36), id=c("site1","site2"))
 
@@ -42,8 +27,8 @@ ui <- fluidPage(
 
 server <- function(input, output){
   # load the sheet
-  data <- reactiveValues()
-  data$x <- load_gdata()
+  mydata <- reactiveValues()
+  mydata$x <- load_db()
 
   observeEvent(input$add, {
     # get the data
@@ -54,15 +39,15 @@ server <- function(input, output){
                            nwidgets = input$nwidget)
     print(add_data)
     # add the data to the sheet
-    save_gdata(add_data)
+    save_db(add_data)
     # load the sheet
-    data$x <- load_gdata()
+    mydata$x <- load_db()
   })
   
   # render outputs
-  output$mytable <- renderTable({ data$x })
+  output$mytable <- renderTable({ mydata$x })
   output$myplot <- renderPlot({
-    dd <- data$x
+    dd <- mydata$x
     plot(dd$weather, dd$nwidgets, col=factor(dd$site), pch=19)
   })
   output$mymap <- renderLeaflet({
@@ -74,17 +59,18 @@ server <- function(input, output){
   # map events
   observeEvent(input$mymap_marker_click, {
     clicked_site <- input$mymap_marker_click$id
-    data$x <- load_gdata(clicked_site)
+    alldata <- load_db()
+    mydata$x <- alldata[alldata$site==clicked_site, ]
   })
   observeEvent(input$mymap_click, {
-    data$x <- load_gdata()
+    mydata$x <- load_db()
   })
 
   # download handler
   output$downloadData <- downloadHandler(
-    filename=function(){ paste0("mydata",Sys.Date(),".csv") },
+    filename=function(){ paste0("mydata-",Sys.Date(),".csv") },
     content = function(con){
-      write.csv(data$x, con, row.names=FALSE)
+      write.csv(mydata$x, con, row.names=FALSE)
     }
   )
 }

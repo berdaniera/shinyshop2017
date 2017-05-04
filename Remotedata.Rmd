@@ -1,0 +1,221 @@
+---
+title: "Remote storage solutions"
+author: "Aaron Berdanier"
+date: "May 4, 2017"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+---
+
+# Overview
+
+![](http://images.huffingtonpost.com/2016-05-09-1462761733-5966723-chooseyourown.jpg)
+
+
+Our example apps will be deployed on shinyapps.io. Shinyapps is great, but they don't let you modify local data storage. Thus, to update our database, we need to use a remote storage solution.
+
+There are four great options for free remote storage. They each have their own pros and cons:
+
+```{r echo=FALSE}
+solutions <- c("Amazon S3","MongoDB","Google Sheets","Dropbox")
+ease <- c(1,2,3,4)
+efficiency <- c(4,3,2,1)
+plot(0,0,xlim=c(0,5),ylim=c(0,5),type="n",bty="l",xlab="Ease of use →",ylab="Efficiency/speed →",xaxt="n",yaxt="n")
+text(ease,efficiency,solutions)
+```
+
+I've ordered them here by the efficiency and speed for our application. You can use whatever you want.
+
+## A note on git
+
+If you use version control, you will want to add these file names to your `.gitignore` file because they contain private information that you don't want to leak:
+
+```
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+global.R
+*.rds
+.httr-oauth
+```
+
+# Amazon S3
+
+Amazon's Simple Storage Service lets you store objects in a cloud folder (they call them "buckets"). This API lets you store Rdata objects (which are compressed dramatically and easy to reload into R) directly. Plus, Amazon lets you store 5GB of data for free!
+
+## Setting up an account
+
+1. Go to [aws.amazon.com](aws.amazon.com) and create an AWS account
+2. Then, go to the S3 console and "Create Bucket"
+3. Name your bucket whatever you want (we need to remember it)
+4. Go to "My Account > Security Credentials > Access Keys > Create New Access Key" and copy down your access key ID and secret access key *(note: this is not the best practice, but it is easier than setting up a new IAM access account)*
+5. Install [`aws.S3`](https://github.com/cloudyr/aws.s3) in R: `install.packages('aws.s3')`
+
+## In a `global.R` file
+
+This is where we're going to give Shiny acccess to your AWS account.
+
+```
+library(aws.s3)
+# Yo, don't share this stuff!
+Sys.setenv("AWS_ACCESS_KEY_ID" = "yourawsaccesskeyid",
+           "AWS_SECRET_ACCESS_KEY" = "yourawssecretaccesskey")
+aws_bucket <- "shinyshop"
+
+# These are functions that we'll use to access and edit the data
+save_db <- function(dat, bucket=aws_bucket){
+  dat <- dat
+  if(exists("mydata")) dat <- rbind(mydata$x, dat)
+  s3save(dat, bucket=bucket, object="data.Rda")
+}
+load_db <- function(){
+  s3load("data.Rda", aws_bucket)
+  return(dat)
+}
+```
+
+
+# MongoDB
+
+MongoDB is a NoSQL database system, which means that it can take structured or unstructured data. The storage is similar to JSON and each row (what they call a "collection") is stored as a separate item. mLab lets you set up a free cloud-hosted MongoDB that is smaller than 500MB.
+
+## Setting up an account
+
+1. Go to [mlab.com](www.mlab.com) and click "Get 500 MB Free!"
+2. Create your account
+3. Under MongoDB Deployments, go to "Create New > Single-node plan > Standard line/Sandbox/FREE"
+4. Name the database (and write it down somewhere) and click "Create new MongoDB deployment"
+5. Install [`mongolite`](https://github.com/jeroen/mongolite) in R: `install.packages('mongolite')`
+
+## In a `global.R` file
+
+This is where we're going to give Shiny acccess to your AWS account.
+
+```
+library(mongolite)
+# Yo, don't share this stuff!
+# Get this information from your mlab dashboard
+options(mongodb = list(
+  "host" = "ds131041.mlab.com:31041",
+  "username" = "yourusername",
+  "password" = "yourpassword"
+))
+db_name <- "shinyshop" # whatever you called the database when you set it up
+db <- mongo(collection = "data2",
+            url = sprintf("mongodb://%s:%s@%s/%s",
+              options()$mongodb$username,
+              options()$mongodb$password,
+              options()$mongodb$host,
+              db_name))
+
+save_db <- function(dat){
+  db$insert(dat)
+}
+load_db <- function(){
+  dd <- db$find()
+  return(dd)
+}
+```
+
+
+# Google Sheets
+
+Google Sheets is like Excel on the cloud. This API is pretty slow (think about your users!), but has the benefit of being accessible from your browser through Google Docs.
+
+## Setting up an account
+
+1. Create a Google account
+2. Install [`googlesheets`](https://github.com/jennybc/googlesheets) in R: `install.packages('googlesheets')`
+
+## Initializing things in R
+
+Before you can connect with googlesheets, we need to authorize R to access your Google account. You'll do this in an R console that has your shiny folder as a working directory. You only do this once and *do not* copy the code into your shiny `app.R`.
+
+```
+library(googlesheets)
+shiny_token <- gs_auth() # authenticate
+# Yo, don't share your token!
+saveRDS(shiny_token, "shiny_app_token.rds")
+# need to initialize with our columns and a blank row (unfortunately)
+initial_sheet <- data.frame(addtime=0, site=0, weather=0, nwidgets=0)
+gdoc_name <- "shinyshop"
+ss <- gs_new(gdoc_name, input=initial_sheet)
+sheetkey <- ss$sheet_key
+sheetkey # write this down or copy it, something like "10kYZGTfXquVUwvBXH-8M-p01csXN6MNuuTzxnDdy3Pk"
+```
+
+
+## In a `global.R` file
+
+This is where we're going to give Shiny acccess to your AWS account.
+
+```
+library(googlesheets)
+# load the sheet
+sheetkey <- "yoursheetkey" # from the previous step
+ss <- gs_key(sheetkey)
+
+save_db <- function(dat){
+  # this loops over rows...
+  apply(dat, 1, function(x) gs_add_row(ss, input=x, verbose=FALSE))
+}
+load_db <- function(){
+  dd <- gs_read(ss)
+  # this checks if all the entries are zero... to omit
+  is_zero <- suppressWarnings(apply(dd, 1, function(x) all(as.numeric(x)==0)))
+  return(dd[!is_zero, ])
+}
+```
+
+
+# Dropbox
+
+Dropbox is a cloud-based folder system. With this API, you need to locally save a .csv file when you want to upload/download files. That makes it pretty inefficient for our purposes. The benefit is that you can then access the files from your dropbox connection.
+
+## Setting up an account
+
+1. Create a Dropbox account
+2. Install [`rdrop2`](https://github.com/karthik/rdrop2) in R: `install.packages('rdrop2')`
+
+## Initializing things in R
+
+Before you can connect with rdrop2, we need to authorize R to access your Dropbox account. You'll do this in an R console that has your shiny folder as a working directory. You only do this once and *do not* copy the code into your shiny `app.R`.
+
+```
+library(rdrop2)
+token <- drop_auth()
+# Yo, don't share your token!
+saveRDS(token, "droptoken.rds")
+dbfolder <- "shinyshop"
+drop_create(dbfolder)
+```
+
+
+## In a `global.R` file
+
+This is where we're going to give Shiny acccess to your AWS account.
+
+```
+library(rdrop2)
+token <- readRDS("droptoken.rds")
+# Then pass the token to each drop_ function
+drop_acc(dtoken = token)
+db_folder <- "shinyshop"
+
+save_db <- function(dat) {
+  if(exists("mydata")) dat <- rbind(mydata$x, dat)
+  file_path <- file.path(tempdir(), "data.csv") # create temporary file
+  write.csv(dat, file_path, row.names = FALSE)
+  drop_upload(file_path, dest = db_folder)
+}
+
+load_db <- function() {
+  dd <- drop_read_csv(file.path(db_folder,"data.csv"))
+  return(dd)
+}
+```
