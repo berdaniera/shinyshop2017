@@ -1,6 +1,8 @@
 library(leaflet)
 library(shiny)
 
+source("global.R")
+
 sites <- list(lng=c(175,-79), lat=c(-36,36), id=c("site1","site2"))
 
 # UI, this is a function call, so contents are elements = need commas between

@@ -74,11 +74,13 @@ We want to include:
 
 ## 1. Basic interface
 
-#### See above. For now, make it just output user input into a table -- **test**
+#### See above. To start, we'll make it just output user input into a table -- **test**
 
 ## 2. Database choose your own adventure
 
-#### First, check out the Remote Data document
+#### First, check out the [Remote Data document](Remotedata.html)
+
+This will get you started on data storage
 
 #### Then, we'll run a test
 

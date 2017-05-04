@@ -15,20 +15,24 @@ output:
 
 ![](http://images.huffingtonpost.com/2016-05-09-1462761733-5966723-chooseyourown.jpg)
 
+If you want to deploy apps at the workshop I will show you how to do it through shinyapps.io. Shinyapps is great, but they don't let you modify local data storage (**note** you can upload as much static content as you want as long as the whole app is less than 100MB -- but beware of memory usage in the app). 
 
-Our example apps will be deployed on shinyapps.io. Shinyapps is great, but they don't let you modify local data storage. Thus, to update our database, we need to use a remote storage solution.
-
-There are four great options for free remote storage. They each have their own pros and cons:
+Thus, to update our database, we need to use a remote storage solution. There are four great options for some free remote storage. In my mind there is a tradeoff between efficiency and ease of use:
 
 ```{r echo=FALSE}
-solutions <- c("Amazon S3","MongoDB","Google Sheets","Dropbox")
-ease <- c(1,2,3,4)
-efficiency <- c(4,3,2,1)
-plot(0,0,xlim=c(0,5),ylim=c(0,5),type="n",bty="l",xlab="Ease of use →",ylab="Efficiency/speed →",xaxt="n",yaxt="n")
+solutions <- c("MongoDB","Amazon S3","Dropbox","Google Sheets")
+ease <- c(1,2,3,2.8)
+efficiency <- c(4,3.5,2,1)
+plot(0,0,xlim=c(0,4),ylim=c(0,5),type="n",bty="l", 
+     xlab="Ease of use →",ylab="Efficiency/speed →",xaxt="n",yaxt="n")
 text(ease,efficiency,solutions)
 ```
 
-I've ordered them here by the efficiency and speed for our application. You can use whatever you want.
+I've ordered them here by what I think is the best for our application. You can use whatever you want.
+
+## Before the workshop
+
+Think about which of these you want to use at the workshop. Then, choose one and do the **Setting up an account** steps.
 
 ## A note on git
 
@@ -43,6 +47,44 @@ global.R
 *.rds
 .httr-oauth
 ```
+
+# MongoDB
+
+MongoDB is a NoSQL database system, which means that it can take structured or unstructured data. The storage is similar to JSON and each row (what they call a "collection") is stored as a separate item. mLab lets you set up a free cloud-hosted MongoDB that is smaller than 500MB.
+
+## Setting up an account
+
+1. Go to [mlab.com](www.mlab.com) and click "Get 500 MB Free!"
+2. Create your account
+3. Under MongoDB Deployments, go to "Create New > Single-node plan > Standard line/Sandbox/FREE"
+4. Name the database (and write it down somewhere) and click "Create new MongoDB deployment"
+5. Click "Users > Add database user", remember <dbuser> and <dbpassword>
+6. Copy the weird url on your dashboard (something like `mongodb://<dbuser>:<dbpassword>@ds123456.mlab.com:33333/shinyshop`)
+7. Install [`mongolite`](https://github.com/jeroen/mongolite) in R: `install.packages('mongolite')`
+
+## In a `global.R` file
+
+This is where we're going to give Shiny acccess to your AWS account.
+
+```
+library(mongolite)
+# Yo, don't share this stuff!
+# Get this information from your mlab dashboard
+dbuser <- "yourusername"
+dbpassword <- "yourpassword"
+dburl <- sprintf("mongodb://%s:%s@ds131041.mlab.com:31041/shinyshop", dbuser, dbpassword)
+# Replace <dbuser> and <dbpassword> in the mlab url with %s
+db <- mongo(collection = "data2", url = dburl)
+
+save_db <- function(dat){
+  db$insert(dat)
+}
+load_db <- function(){
+  dd <- db$find()
+  return(dd)
+}
+```
+
 
 # Amazon S3
 
@@ -80,48 +122,52 @@ load_db <- function(){
 ```
 
 
-# MongoDB
+# Dropbox
 
-MongoDB is a NoSQL database system, which means that it can take structured or unstructured data. The storage is similar to JSON and each row (what they call a "collection") is stored as a separate item. mLab lets you set up a free cloud-hosted MongoDB that is smaller than 500MB.
+Dropbox is a cloud-based folder system. With this API, you need to locally save a .csv file when you want to upload/download files. That makes it pretty inefficient for our purposes. The benefit is that you can then access the files from your dropbox connection.
 
 ## Setting up an account
 
-1. Go to [mlab.com](www.mlab.com) and click "Get 500 MB Free!"
-2. Create your account
-3. Under MongoDB Deployments, go to "Create New > Single-node plan > Standard line/Sandbox/FREE"
-4. Name the database (and write it down somewhere) and click "Create new MongoDB deployment"
-5. Install [`mongolite`](https://github.com/jeroen/mongolite) in R: `install.packages('mongolite')`
+1. Create a Dropbox account
+2. Install [`rdrop2`](https://github.com/karthik/rdrop2) in R: `install.packages('rdrop2')`
+
+## Initializing things in R
+
+Before you can connect with rdrop2, we need to authorize R to access your Dropbox account. You'll do this in an R console that has your shiny folder as a working directory. You only do this once and *do not* copy the code into your shiny `app.R`.
+
+```
+library(rdrop2)
+token <- drop_auth()
+# Yo, don't share your token!
+saveRDS(token, "droptoken.rds")
+dbfolder <- "shinyshop"
+drop_create(dbfolder)
+```
+
 
 ## In a `global.R` file
 
 This is where we're going to give Shiny acccess to your AWS account.
 
 ```
-library(mongolite)
-# Yo, don't share this stuff!
-# Get this information from your mlab dashboard
-options(mongodb = list(
-  "host" = "ds131041.mlab.com:31041",
-  "username" = "yourusername",
-  "password" = "yourpassword"
-))
-db_name <- "shinyshop" # whatever you called the database when you set it up
-db <- mongo(collection = "data2",
-            url = sprintf("mongodb://%s:%s@%s/%s",
-              options()$mongodb$username,
-              options()$mongodb$password,
-              options()$mongodb$host,
-              db_name))
+library(rdrop2)
+token <- readRDS("droptoken.rds")
+# Then pass the token to each drop_ function
+drop_acc(dtoken = token)
+db_folder <- "shinyshop"
 
-save_db <- function(dat){
-  db$insert(dat)
+save_db <- function(dat) {
+  if(exists("mydata")) dat <- rbind(mydata$x, dat)
+  file_path <- file.path(tempdir(), "data.csv") # create temporary file
+  write.csv(dat, file_path, row.names = FALSE)
+  drop_upload(file_path, dest = db_folder)
 }
-load_db <- function(){
-  dd <- db$find()
+
+load_db <- function() {
+  dd <- drop_read_csv(file.path(db_folder,"data.csv"))
   return(dd)
 }
 ```
-
 
 # Google Sheets
 
@@ -173,49 +219,27 @@ load_db <- function(){
 ```
 
 
-# Dropbox
+# More information
 
-Dropbox is a cloud-based folder system. With this API, you need to locally save a .csv file when you want to upload/download files. That makes it pretty inefficient for our purposes. The benefit is that you can then access the files from your dropbox connection.
+All of this stuff is modified from [an article by Dean Attali](https://shiny.rstudio.com/articles/persistent-data-storage.html). That page has info about other options, too.
 
-## Setting up an account
-
-1. Create a Dropbox account
-2. Install [`rdrop2`](https://github.com/karthik/rdrop2) in R: `install.packages('rdrop2')`
-
-## Initializing things in R
-
-Before you can connect with rdrop2, we need to authorize R to access your Dropbox account. You'll do this in an R console that has your shiny folder as a working directory. You only do this once and *do not* copy the code into your shiny `app.R`.
+If you are hosting your own server, you can do local data storage. Like, one thing you could do is just append the data to an existing .csv on file:
 
 ```
-library(rdrop2)
-token <- drop_auth()
-# Yo, don't share your token!
-saveRDS(token, "droptoken.rds")
-dbfolder <- "shinyshop"
-drop_create(dbfolder)
+write.csv(mydataframe, file="database.csv", 
+  append=TRUE, row.names=FALSE, col.names=FALSE)
 ```
 
+## Hosting options at Duke
 
-## In a `global.R` file
+For those of you at Duke, you can get a free virtual machine that is set up to run a Shiny Server. [More information about that here](http://vm-manage.oit.duke.edu).
 
-This is where we're going to give Shiny acccess to your AWS account.
+Matt Ross also knows how to use Duke OIT's GitHub/Stevedore/Docker/Shiny system. Docker is the future. Ask him for guidance...
 
-```
-library(rdrop2)
-token <- readRDS("droptoken.rds")
-# Then pass the token to each drop_ function
-drop_acc(dtoken = token)
-db_folder <- "shinyshop"
+## Hosting your own instances
 
-save_db <- function(dat) {
-  if(exists("mydata")) dat <- rbind(mydata$x, dat)
-  file_path <- file.path(tempdir(), "data.csv") # create temporary file
-  write.csv(dat, file_path, row.names = FALSE)
-  drop_upload(file_path, dest = db_folder)
-}
+If you really want to geek out, there are other awesome options for hosting Shiny apps.
 
-load_db <- function() {
-  dd <- drop_read_csv(file.path(db_folder,"data.csv"))
-  return(dd)
-}
-```
+You can host your app (and your data if you want) on AWS. [Here is an example of doing that](http://www.kimberlycoffey.com/blog/2016/2/13/mlz90wjw0k76446xkg262prvjp0l8u). [Here is another](https://edgarsdatalab.com/2016/08/25/rstudio-shiny-server-in-aws/).
+
+I use [Digital Ocean for hosting](http://www.digitalocean.com) because it is easy to figure out their pricing (AWS pricing is confusing AF). Dean Attali also wrote an [awesome tutorial for Shiny on Digital Ocean](https://www.digitalocean.com/community/tutorials/how-to-set-up-shiny-server-on-ubuntu-14-04).
