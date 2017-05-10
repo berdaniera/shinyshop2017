@@ -13,11 +13,9 @@ output:
 
 # Overview
 
-![](http://images.huffingtonpost.com/2016-05-09-1462761733-5966723-chooseyourown.jpg)
+In the workshop I will show you how to deply apps through shinyapps.io. Shinyapps is great, but they don't let you modify data stored on the shinyapps server through the app (**note** you can upload as much static content as you want as long as the whole app is less than 100MB -- but beware of memory usage in the app). 
 
-If you want to deploy apps at the workshop I will show you how to do it through shinyapps.io. Shinyapps is great, but they don't let you modify local data storage (**note** you can upload as much static content as you want as long as the whole app is less than 100MB -- but beware of memory usage in the app). 
-
-Thus, to update our database, we need to use a remote storage solution. There are four great options for some free remote storage. In my mind there is a tradeoff between efficiency and ease of use:
+Thus, to update and save your database, you need to use a remote storage solution. There are four great options for some free remote storage. In my mind there is a tradeoff between efficiency and ease of use:
 
 ```{r echo=FALSE}
 solutions <- c("MongoDB","Amazon S3","Dropbox","Google Sheets")
@@ -28,11 +26,7 @@ plot(0,0,xlim=c(0,4),ylim=c(0,5),type="n",bty="l",
 text(ease,efficiency,solutions)
 ```
 
-I've ordered them here by what I think is the best for our application. You can use whatever you want.
-
-## Before the workshop
-
-Think about which of these you want to use at the workshop. Then, choose one and do the **Setting up an account** steps.
+I've ordered them here by what I think is the best for our application. You can use whatever you want. If you didn't do any of this before hand, you can still write to a local .csv file and it should work (but shinyapps.io won't store any of the data long-term).
 
 ## A note on git
 
@@ -111,8 +105,8 @@ aws_bucket <- "shinyshop"
 
 # These are functions that we'll use to access and edit the data
 save_db <- function(dat, bucket=aws_bucket){
-  dat <- dat
-  if(exists("mydata")) dat <- rbind(mydata$x, dat)
+  dat <- rbind(mydata$x, dat)
+    # note, this is sloppy coding, functions don't usually call outside variables
   s3save(dat, bucket=bucket, object="data.Rda")
 }
 load_db <- function(){
@@ -157,7 +151,8 @@ drop_acc(dtoken = token)
 db_folder <- "shinyshop"
 
 save_db <- function(dat) {
-  if(exists("mydata")) dat <- rbind(mydata$x, dat)
+  dat <- rbind(mydata$x, dat)
+    # note, this is sloppy coding, functions don't usually call outside variables
   file_path <- file.path(tempdir(), "data.csv") # create temporary file
   write.csv(dat, file_path, row.names = FALSE)
   drop_upload(file_path, dest = db_folder)
@@ -218,14 +213,42 @@ load_db <- function(){
 }
 ```
 
+# If you didn't set stuff up in advance
 
-# More information
+You get to save and access the data "locally". That means that you write data to the server computer, but this code automatically overwrites the csv file with each new user session.
 
-All of this stuff is modified from [an article by Dean Attali](https://shiny.rstudio.com/articles/persistent-data-storage.html). That page has info about other options, too.
+This is an easier way to store data if you are testing an app on your personal computer or if you are hosting your app on your own server (not shinyapps.io). In those cases, you can modify the code to not rewrite the file each time. If you are using shinyapps.io, you'll be able to write the data to the shinyapps.io server, but it will get deleted everytime the remote computer reboots (which is pretty often).
 
-If you are hosting your own server, you can do local data storage. Like, one thing you could do is just append the data to an existing .csv on file:
+## Saving data to a local .csv
 
+You can append data to an existing csv file with the `append=TRUE` command in write.csv(). So easy.
 ```
 write.csv(mydataframe, file="database.csv", 
   append=TRUE, row.names=FALSE, col.names=FALSE)
 ```
+
+You can also just save and load .Rdata files -- compressed for fast data access!
+
+## In a `global.R` file
+
+Some functions to match the other options.
+```
+# This makes a new sheet with each user session
+initial_sheet <- data.frame(addtime=character(), site=character(), 
+  weather=numeric(), nwidgets=numeric())
+write.csv(initial_sheet, file="data.csv", row.names=FALSE)
+save_db <- function(dat){
+  write.table(dat, file="data.csv", sep=",", 
+    append=TRUE, row.names=FALSE, col.names=FALSE)
+}
+load_db <- function(){
+  dat <- read.csv("data.csv")
+  return(dat)
+}
+
+```
+
+
+# More information
+
+All of this stuff is modified from [an article by Dean Attali](https://shiny.rstudio.com/articles/persistent-data-storage.html). That page has info about other options, too.
