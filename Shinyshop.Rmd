@@ -1,7 +1,7 @@
 ---
 title: "Shiny shop"
 author: "Aaron Berdanier"
-date: "May 2, 2017"
+date: "May 5, 2017"
 output:
   html_document:
     toc: true
@@ -129,3 +129,38 @@ m  # Print the map
     + grab data in data table
     + download to file
 
+# To shinyapps.io!
+
+Getting your shinyapps.io set up is pretty easy in RStudio. We'll walk through an example. [The full reference is here](http://docs.rstudio.com/shinyapps.io/getting-started.html).
+
+Once you link your account, deploying an app from RStudio is as simple as clicking a button...
+
+![](ShinyPublish.png)
+
+... or from the console with `deployApp()` (*note*: by default this deploys all files in the working directory...).
+
+## Other hosting options
+
+#### Hosting options at Duke
+
+For those of you at Duke, you can get a free virtual machine that is set up to run a Shiny Server. [More information about that here](http://vm-manage.oit.duke.edu). Duke OIT also has a GitHub/Stevedore/Docker/Shiny system. Docker is the future of cloud computing. Maybe ask Matt Ross for guidance...
+
+#### Hosting your own instances
+
+If you really want to geek out, there are other awesome options for hosting Shiny apps.
+
+You can host your app (and your data if you want) on AWS. [Here is an example of doing that](http://www.kimberlycoffey.com/blog/2016/2/13/mlz90wjw0k76446xkg262prvjp0l8u). [Here is another](https://edgarsdatalab.com/2016/08/25/rstudio-shiny-server-in-aws/).
+
+I use [Digital Ocean for hosting](https://m.do.co/c/95a6044925d8) because it is easy to figure out their pricing (AWS pricing is confusing AF). There is a great [tutorial on setting up your own Shiny Server on Digital Ocean here](https://www.jasperginn.nl/shiny-server-series-pt1/).
+
+# More reading
+
+#### Shiny stuff
+
+[The shiny cheat sheet](http://shiny.rstudio.com/images/shiny-cheatsheet.pdf) - this is **awesome**
+
+[RStudio articles with examples](https://shiny.rstudio.com/articles/)
+
+#### Interative visualization stuff
+
+[The superpower of interactive datavis? A micro-macro view!](https://medium.com/@dominikus/the-superpower-of-interactive-datavis-a-micro-macro-view-4d027e3bdc71) - by Dominikus Baur - about blending *anecdote* and *statistics*. (Also, check out his "Death of Interactive Graphics")

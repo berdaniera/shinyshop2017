@@ -1,7 +1,7 @@
 ---
 title: "Remote storage solutions"
 author: "Aaron Berdanier"
-date: "May 4, 2017"
+date: "May 8, 2017"
 output:
   html_document:
     toc: true
@@ -229,17 +229,3 @@ If you are hosting your own server, you can do local data storage. Like, one thi
 write.csv(mydataframe, file="database.csv", 
   append=TRUE, row.names=FALSE, col.names=FALSE)
 ```
-
-## Hosting options at Duke
-
-For those of you at Duke, you can get a free virtual machine that is set up to run a Shiny Server. [More information about that here](http://vm-manage.oit.duke.edu).
-
-Matt Ross also knows how to use Duke OIT's GitHub/Stevedore/Docker/Shiny system. Docker is the future. Ask him for guidance...
-
-## Hosting your own instances
-
-If you really want to geek out, there are other awesome options for hosting Shiny apps.
-
-You can host your app (and your data if you want) on AWS. [Here is an example of doing that](http://www.kimberlycoffey.com/blog/2016/2/13/mlz90wjw0k76446xkg262prvjp0l8u). [Here is another](https://edgarsdatalab.com/2016/08/25/rstudio-shiny-server-in-aws/).
-
-I use [Digital Ocean for hosting](http://www.digitalocean.com) because it is easy to figure out their pricing (AWS pricing is confusing AF). Dean Attali also wrote an [awesome tutorial for Shiny on Digital Ocean](https://www.digitalocean.com/community/tutorials/how-to-set-up-shiny-server-on-ubuntu-14-04).
