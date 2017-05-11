@@ -13,7 +13,7 @@ output:
 
 # Overview
 
-In the workshop I will show you how to deply apps through shinyapps.io. Shinyapps is great, but they don't let you modify data stored on the shinyapps server through the app (**note** you can upload as much static content as you want as long as the whole app is less than 100MB -- but beware of memory usage in the app). 
+In the workshop I will show you how to deply apps through shinyapps.io. Shinyapps is great, but they don't yet let you modify data stored on the shinyapps server through the app (apparently it is coming soon) (**note** you can upload as much static content as you want as long as the whole app is less than 100MB -- but beware of memory usage in the app). 
 
 Thus, to update and save your database, you need to use a remote storage solution. There are four great options for some free remote storage. In my mind there is a tradeoff between efficiency and ease of use:
 
@@ -44,7 +44,7 @@ global.R
 
 # MongoDB
 
-MongoDB is a NoSQL database system, which means that it can take structured or unstructured data. The storage is similar to JSON and each row (what they call a "collection") is stored as a separate item. mLab lets you set up a free cloud-hosted MongoDB that is smaller than 500MB.
+MongoDB is a NoSQL database system, which means that it can take structured or unstructured data. The storage is similar to JSON and each row (what they call a "document") is stored as a separate item. *mLab* lets you set up a free cloud-hosted MongoDB that is smaller than 500MB.
 
 ## Setting up an account
 
@@ -58,7 +58,7 @@ MongoDB is a NoSQL database system, which means that it can take structured or u
 
 ## In a `global.R` file
 
-This is where we're going to give Shiny acccess to your AWS account.
+This is where we're going to give Shiny acccess to your mLab account.
 
 ```
 library(mongolite)
@@ -82,7 +82,7 @@ load_db <- function(){
 
 # Amazon S3
 
-Amazon's Simple Storage Service lets you store objects in a cloud folder (they call them "buckets"). This API lets you store Rdata objects (which are compressed dramatically and easy to reload into R) directly. Plus, Amazon lets you store 5GB of data for free!
+Amazon's Simple Storage Service lets you store objects in a cloud folder (they call them "buckets"). This API lets you store Rdata objects (which are compressed dramatically and easy to reload into R) directly. Plus, Amazon lets you store 5GB of data for free (see... Bezos isn't so bad)!
 
 ## Setting up an account
 
@@ -141,7 +141,7 @@ drop_create(dbfolder)
 
 ## In a `global.R` file
 
-This is where we're going to give Shiny acccess to your AWS account.
+This is where we're going to give Shiny acccess to your Dropbox account.
 
 ```
 library(rdrop2)
@@ -193,7 +193,7 @@ sheetkey # write this down or copy it, something like "10kYZGTfXquVUwvBXH-8M-p01
 
 ## In a `global.R` file
 
-This is where we're going to give Shiny acccess to your AWS account.
+This is where we're going to give Shiny acccess to your Google Sheets account.
 
 ```
 library(googlesheets)
@@ -215,9 +215,11 @@ load_db <- function(){
 
 # If you didn't set stuff up in advance
 
-You get to save and access the data "locally". That means that you write data to the server computer, but this code automatically overwrites the csv file with each new user session.
+You get to save and access the data "locally" -- i.e., you write data to the server computer.
 
-This is an easier way to store data if you are testing an app on your personal computer or if you are hosting your app on your own server (not shinyapps.io). In those cases, you can modify the code to not rewrite the file each time. If you are using shinyapps.io, you'll be able to write the data to the shinyapps.io server, but it will get deleted everytime the remote computer reboots (which is pretty often).
+This is an easier way to store data if you are testing an app on your personal computer or if you are hosting an app on your own server. However, the code that I wrote below will automatically overwrite the csv file with each new user. If you want persistent storage, you can modify the code to not rewrite the file each time. 
+
+*Note:* If you are using shinyapps.io, you are allowed to write data to the shinyapps.io server but it will get deleted everytime the remote computer reboots (which is pretty often).
 
 ## Saving data to a local .csv
 
