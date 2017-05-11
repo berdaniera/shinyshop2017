@@ -41,7 +41,7 @@ server <- function(input, output){
                            nwidgets = input$nwidget)
     print(add_data)
     # add the data to the sheet
-    save_db(add_data, mydata$x)
+    save_db(add_data)
     # load the sheet
     mydata$x <- load_db()
   })
